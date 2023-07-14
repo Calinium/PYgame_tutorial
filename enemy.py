@@ -91,6 +91,10 @@ class Enemy(Tile):
                     else:
                         rect = pygame.rect.Rect(self.rect.left-self.rect.width*1.2, self.rect.top, self.rect.width*1.2, self.rect.height)
                     
+                    if rect.colliderect(self.player.rect):
+                        isEnemyOnRight = self.rect.x > self.player.rect.x
+                        self.player.hurt(isEnemyOnRight)
+                        
                     # pygame.draw.rect(self.display_surface, (255, 255, 0), rect) # 공격 히트박스 디스플레이
                     
         else: #mage
@@ -188,10 +192,16 @@ class Enemy(Tile):
         image = self.bang_animations[int(self.bang_index)]
         self.display_surface.blit(image, (self.rect.centerx-image.get_width()/2 , self.rect.centery-64*1.2))
 
+    def player_collision(self):
+        if self.status != 'death' and self.rect.colliderect(self.player.rect):
+            isEnemyOnRight = self.rect.x > self.player.rect.x
+            self.player.hurt(isEnemyOnRight)
+
     def update(self, x_shift):
         self.rect.x += x_shift
         self.get_attackbox()
         self.detect_player()
+        self.player_collision()
         self.animate()
         if self.type == 'mage':
             self.fireball_sprites.update(x_shift)

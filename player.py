@@ -54,12 +54,16 @@ class Player(pygame.sprite.Sprite):
         self.skill_attacking = False # 스킬공격 중인지 확인
         #self.skill_attack_hitbox = None
 
+        self.hurting = False
+        self.invincible = False
+
     def import_character_assets(self): ## 캐릭터 모델 로드 함수
         character_path = './assets/character/BattleImages/' # 캐릭터 경로설정
         self.animations = {'attack1':[],'attack2':[],'attack3':[],'crouch':[],
                            'crouch_attack':[],'dash':[],'death':[],'fast_magic':[],
                            'idle':[], 'jump_forward':[],'jump_natural':[],
-                           'running':[], 'stop':[],'sustain_magic':[], 'fall':[]} # 캐릭터 애니메이션 종류 설정
+                           'running':[], 'stop':[],'sustain_magic':[], 'fall':[],
+                           'hurt':[], 'invincible':[]} # 캐릭터 애니메이션 종류 설정
         
         # self.animations 딕셔너리에 각 애니메이션 별 이미지 저장
         for animation in self.animations.keys():
@@ -73,7 +77,8 @@ class Player(pygame.sprite.Sprite):
         animation = self.animations[self.status] # 현재 상태의 애니메이션 리스트 불러오기
 
         # 애니메이션 속도 설정
-        if self.status == 'running' or self.attacking==True: self.animation_speed=0.3
+        if self.status == 'running' or self.attacking==True or self.invincible: self.animation_speed=0.3
+        elif self.status == 'hurt': self.animation_speed = 0.1
         else: self.animation_speed=0.15
 
         self.frame_index += self.animation_speed # 인덱스에 속도값 더하기
@@ -99,32 +104,35 @@ class Player(pygame.sprite.Sprite):
             # 특정 상태는 애니메이션 종료 후 모션 유지
             if self.status in ['jump_natural','fall_natural','jump_forward','fall', 'crouch']:
                 self.frame_index = len(animation)-1
-            
-            #공격중이면
-            elif self.attacking:
+
+            else:
+                if self.attacking:
                     if self.attack_type == 3: self.attack_type = 0 # 공격 유형 3이면 0으로 초기화
                     self.attacking=False # 공격 끝남
-                    self.frame_index = 0 # 인덱스 0으로 설정
-                    if self.crouched: animation = self.animations['crouch'] # 숙인 상태면 그대로 유지
-                    else: animation = self.animations['idle'] # 아니면 기본 상태로 설정
-            
-            # 스킬 공격 중이면
-            elif self.skill_attacking:
-                self.skill_attacking = False # 스킬공격 끝남
+
+                elif self.skill_attacking:
+                    self.skill_attacking = False # 스킬공격 끝남
+
+                elif self.hurting:
+                    self.hurting = False
+                    self.invincible = True
+
+                elif self.invincible:
+                    self.invincible = False
+                
                 self.frame_index = 0 # 인덱스 0으로 설정
-                animation = self.animations['idle'] # 기본 상태로 설정
-            
-            else: 
-                self.frame_index = 0 # 전부 아니면 인덱스만 초기화
+                animation = self.animations['crouch'] if self.crouched else self.animations['idle']
 
         image = animation[int(self.frame_index)] # 애니메이션의 인덱스 순서를 이미지로 가져오기
 
         # 우측 보고있으면 그대로, 좌측 보고있으면 반전해서 이미지 blit
         if self.facing_right:
-            self.display_surface.blit(image, (self.rect.topleft[0]-39, self.rect.topleft[1]-32))
+            if self.hurting: self.display_surface.blit(image, (self.rect.topleft[0]-39, self.rect.topleft[1]-10))
+            else: self.display_surface.blit(image, (self.rect.topleft[0]-39, self.rect.topleft[1]-32))
         else:
             flipped_image = pygame.transform.flip(image,True,False)
-            self.display_surface.blit(flipped_image, (self.rect.topleft[0]-39, self.rect.topleft[1]-32))
+            if self.hurting: self.display_surface.blit(flipped_image, (self.rect.topleft[0]-39, self.rect.topleft[1]-10))
+            else: self.display_surface.blit(flipped_image, (self.rect.topleft[0]-39, self.rect.topleft[1]-32))
 
     def run_dust_animation(self): ## 더스트 애니메이션 함수
         if self.status == 'running' and self.on_ground: # 걷는 중이고 땅에 있으면
@@ -177,12 +185,18 @@ class Player(pygame.sprite.Sprite):
         elif self.skill_attacking: # 스킬 공격 중이면
             self.status = 'sustain_magic'
 
+        elif self.hurting: 
+            self.status = 'hurt'
+
+        elif self.invincible:
+            self.status = 'invincible'
+
     def get_input(self): ## 키보드 입력 받아오는 함수
         keys = pygame.key.get_pressed() # 키보드 입력값
         mouse = pygame.mouse.get_pressed() # 마우스 입력값
         
         if keys[pygame.K_SPACE]: # 스페이스
-            if not self.crouched and not self.skill_attacking: # 숙이거나 스킬공격하지 않으면
+            if self.isPlayerMovable(): # 숙이거나 스킬공격하지 않으면
                 # 공중 점프 여부 체크하면서 점프
                 if self.on_ground: 
                     self.jump()
@@ -200,18 +214,19 @@ class Player(pygame.sprite.Sprite):
         self.crouched = True if keys[pygame.K_s] else False # s 누르면 숙임
         
         # 땅에 있고 숙이거나 스킬 공격중이면 천천히 정지
-        if self.crouched and self.on_ground or self.skill_attacking:
+        if self.crouched and self.on_ground or self.skill_attacking or self.hurting:
+        # if not self.isPlayerMovable():
             self.stop_slowly()
 
         if keys[pygame.K_a]: # a 누르면
-            if not self.crouched and not self.attacking and not self.skill_attacking: # 숙임, 공격, 스킬공격 모두 아니면
+            if self.isPlayerMovable(): # 움직일 수 있으면
                 # x벡터 -= 0.2
                 if self.direction.x>-1:
                     self.direction.x-=0.2
                 self.facing_right = False
 
         elif keys[pygame.K_d]: # d 누르면
-            if not self.crouched and not self.attacking and not self.skill_attacking: # 숙임, 공격, 스킬공격 모두 아니면
+            if self.isPlayerMovable(): # 숙임, 공격, 스킬공격 모두 아니면
                 # x벡터 += 0.2
                 if self.direction.x<1:
                     self.direction.x+=0.2
@@ -221,7 +236,8 @@ class Player(pygame.sprite.Sprite):
         else: self.stop_slowly()
 
         if mouse[0]: # 좌클릭
-            if not self.attacking and not self.skill_attacking: # 공격 or 스킬공격 중이 아니면
+            condition = self.attacking or self.skill_attacking or self.hurting
+            if not condition:
                 if not self.crouched: # 숙이지 않았으면
                     # attack type 설정
                     if (self.attack_type < 3):
@@ -229,7 +245,7 @@ class Player(pygame.sprite.Sprite):
                 self.swip_attack() # 휘두르기 공격 함수 실행
 
         elif mouse[2]: # 우클릭
-            if not self.attacking and not self.skill_attacking: # 공격 or 스킬공격 중이 아니면
+            if self.isPlayerMovable(): # 공격 or 스킬공격 중이 아니면
                 if not self.crouched: # 숙이지 않았으면
                     self.skill_attack() # 스킬 공격 함수 실행
 
@@ -241,11 +257,17 @@ class Player(pygame.sprite.Sprite):
         self.direction.y = self.jump_speed # y벡터를 점프값으로 설정
         self.create_jump_particles(self.rect.midbottom) # 점프 파티클 생성 (midbottom위치에)
 
-    def hurt(self): ## 피해 입었을 때 함수
-        self.hp -= 1 #hp 깎고
-        if self.hp <= 0: #hp 0 이하면
-            #플레이어 사망 이벤트
-            print("player dead")
+    def hurt(self, isEnemyOnRight): ## 피해 입었을 때 함수
+        if not self.hurting and not self.invincible:
+            self.hp -= 1 #hp 깎고
+            self.hurting = True
+            if isEnemyOnRight:
+                self.direction.x = -1.2
+            else: self.direction.x = 1.2
+            self.direction.y = -10
+            if self.hp <= 0: #hp 0 이하면
+                #플레이어 사망 이벤트
+                print("player dead")
 
     def swip_attack(self): ## 스윕 공격 함수
         # 플레이어 상태에 따라 공격 상태 설정
@@ -282,10 +304,8 @@ class Player(pygame.sprite.Sprite):
 
         # 히트박스 그리기
         if self.facing_right:
-            if self.attack_status == 'ground': self.direction.x += 0.25
             attacking_rect = pygame.Rect(rect.center[0]+dist[0],rect.center[1]+dist[1],rect.width*dist[2],rect.height*dist[3])
         else:
-            if self.attack_status == 'ground': self.direction.x -= 0.25
             attacking_rect = pygame.Rect(rect.center[0]-dist[0]-rect.width*dist[2], rect.center[1]+dist[1], rect.width*dist[2], rect.height*dist[3])
 
         self.attack_hitbox = attacking_rect # 히트박스 변수를 attacking_rect로 설정
@@ -303,6 +323,10 @@ class Player(pygame.sprite.Sprite):
             self.direction.y = 0 # y벡터 0으로 설정
         elif self.rect.y < -25: # 플레이어가 맵 위로 올라가서 안보이면
             self.display_surface.blit(self.there_image, (self.rect.x-10, 10 + (self.rect.y/10))) # 플레이어 x위치에 화살표 디스플레이
+
+    def isPlayerMovable(self):
+        condition = self.attacking or self.skill_attacking or self.hurting or self.crouched
+        return not condition
 
     def update(self): ## 업데이트 함수
         # 순서 중요 !

@@ -7,6 +7,7 @@ class Fireball(pygame.sprite.Sprite):
         super().__init__()
         self.import_fireball_assets()
         self.display_surface = surface
+        self.target = target
         self.speed = 6
 
         self.angle = math.atan2(targety-y, targetx-x)
@@ -24,6 +25,12 @@ class Fireball(pygame.sprite.Sprite):
     def import_fireball_assets(self):
         fireball_path = r'assets\enemies\fireball'
         self.fireball_animations = import_folder(fireball_path)
+
+    def target_collision(self):
+        if self.rect.colliderect(self.target.rect):
+            isFireballOnRight = self.rect.x > self.target.rect.x
+            self.target.hurt(isFireballOnRight)
+            self.kill()
 
     def shoot(self):
         self.fireball_index += 0.1
@@ -51,3 +58,4 @@ class Fireball(pygame.sprite.Sprite):
     def update(self, x_shift):
         self.x += x_shift
         self.shoot()
+        self.target_collision()

@@ -12,12 +12,11 @@ def import_folder(path):
 
             scale = 1
             image_surf = pygame.image.load(full_path)
-            if 'bang_mark' in full_path:
-                scale = 0.05
-            elif 'fireball' in full_path:
-                scale = 0.3
-            elif 'dust_particles' not in full_path:
-                scale = 2
+            if 'bang_mark' in full_path: scale = 0.05
+            elif 'fireball' in full_path: scale = 0.3
+            elif 'BattleImages/hurt' in full_path: scale = 0.7
+            elif 'dust_particles' in full_path: scale = 1
+            else: scale = 2
 
             image_surf = pygame.transform.scale(image_surf, (image_surf.get_size()[0]*scale, image_surf.get_size()[1]*scale)).convert_alpha()
             surface_list.append(image_surf)
