@@ -78,7 +78,7 @@ class Player(pygame.sprite.Sprite):
 
         # 애니메이션 속도 설정
         if self.status == 'running' or self.attacking==True or self.invincible: self.animation_speed=0.3
-        elif self.status == 'hurt': self.animation_speed = 0.1
+        elif self.status=='hurt': self.animation_speed = 0.25
         else: self.animation_speed=0.15
 
         self.frame_index += self.animation_speed # 인덱스에 속도값 더하기
@@ -263,8 +263,12 @@ class Player(pygame.sprite.Sprite):
             self.hurting = True
             if isEnemyOnRight:
                 self.direction.x = -1.2
-            else: self.direction.x = 1.2
+                self.facing_right = True
+            else: 
+                self.direction.x = 1.2
+                self.facing_right = False
             self.direction.y = -10
+            self.frame_index = 0
             if self.hp <= 0: #hp 0 이하면
                 #플레이어 사망 이벤트
                 print("player dead")

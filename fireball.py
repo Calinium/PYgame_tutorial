@@ -30,7 +30,8 @@ class Fireball(pygame.sprite.Sprite):
         if self.rect.colliderect(self.target.rect):
             isFireballOnRight = self.rect.x > self.target.rect.x
             self.target.hurt(isFireballOnRight)
-            self.kill()
+            if self.target.status not in ['hurt', 'invincible']:
+                self.kill()
 
     def shoot(self):
         self.fireball_index += 0.1
