@@ -25,8 +25,7 @@ class Player(pygame.sprite.Sprite):
 
         # player movement
         self.direction = pygame.math.Vector2(0, 0) # 벡터값 설정
-        self.orign_speed = 8 # 플레이어 static 속도
-        self.speed = self.orign_speed # 플레이어 variable 속도
+        self.speed = 8 # 플레이어 속도
         self.gravity = 0.98 # 중력값 설정
         self.jump_speed = -16.5 # 점프 높이(벡터) 설정
 
@@ -325,6 +324,7 @@ class Player(pygame.sprite.Sprite):
         if self.rect.y > 800: # 플레이어가 맵 아래로 떨어지면
             self.rect.y = -300 # 위로 올려보내기
             self.direction.y = 0 # y벡터 0으로 설정
+            self.hurt(False)
         elif self.rect.y < -25: # 플레이어가 맵 위로 올라가서 안보이면
             self.display_surface.blit(self.there_image, (self.rect.x-10, 10 + (self.rect.y/10))) # 플레이어 x위치에 화살표 디스플레이
 
@@ -332,8 +332,9 @@ class Player(pygame.sprite.Sprite):
         condition = self.attacking or self.skill_attacking or self.hurting or self.crouched
         return not condition
 
-    def update(self): ## 업데이트 함수
+    def update(self, x_shift): ## 업데이트 함수
         # 순서 중요 !
+        self.rect.x += x_shift
         self.attack_hitbox = None # 공격 히트박스 기본값 None 설정
         self.he_is_there()
         self.get_input()

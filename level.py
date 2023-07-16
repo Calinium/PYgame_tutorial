@@ -12,6 +12,7 @@ class Level:
         # general setup
         self.display_surface = surface
         self.world_shift = 0
+        self.change_shift = 0
 
         #player
         player_layout = import_csv_layout(level_data['player'])
@@ -126,18 +127,24 @@ class Level:
     def scroll_x(self):
         player = self.player.sprite
         player_x = player.rect.centerx
-        direction_x = player.direction.x
 
-        # if player over border, move screen not player
-        if player_x < screen_width / 4 and direction_x < 0:
-            self.world_shift = player.orign_speed
-            player.speed = 0
-        elif player_x > screen_width-(screen_width/4) and direction_x > 0:
-            self.world_shift = -player.orign_speed
-            player.speed = 0
-        else:
-            self.world_shift = 0
-            player.speed = player.orign_speed
+        if player_x < screen_width/2-tile_size*3.5:
+            self.change_shift += 0.3
+        elif player_x > screen_width/2+tile_size*3.5:
+            self.change_shift -= 0.3
+        else: 
+            if self.change_shift > 0:
+                self.change_shift -= 0.3
+            elif self.change_shift < 0: 
+                self.change_shift += 0.3
+
+        limit = player.speed - 0.5
+        if self.change_shift > limit:
+            self.change_shift = limit
+        elif self.change_shift < -limit:
+            self.change_shift = -limit
+
+        self.world_shift = int(self.change_shift)
 
     def vertical_movement_collision(self):
         player = self.player.sprite
@@ -181,30 +188,31 @@ class Level:
             player.on_right = False
 
     def run(self): 
+        self.scroll_x()
+
         #background
         self.background.update_and_draw(self.display_surface, self.world_shift)
         
         # terrain
-        self.terrain_sprites.draw(self.display_surface)
         self.terrain_sprites.update(self.world_shift)
+        self.terrain_sprites.draw(self.display_surface)
 
         # decorations
-        self.decorations_sprites.draw(self.display_surface)
         self.decorations_sprites.update(self.world_shift)
+        self.decorations_sprites.draw(self.display_surface)
 
         # enemies
-        self.enemies_sprites.draw(self.display_surface)
         self.border_sprites.update(self.world_shift)
         self.enemy_collision_reverse()
         self.enemies_sprites.update(self.world_shift)
+        self.enemies_sprites.draw(self.display_surface)
 
         # dust paritcles
         self.dust_sprite.update(self.world_shift)
         self.dust_sprite.draw(self.display_surface)
 
-        self.scroll_x()
         # player
-        self.player.update()
+        self.player.update(self.world_shift)
         self.get_player_on_ground()
         self.horizontal_movement_collision()
         self.vertical_movement_collision() 
